@@ -4,11 +4,12 @@ import java.util.UUID;
 
 public class User {
 
-    public static final User instance = new User("");
+    public static final User instance = new User("", UUID.randomUUID());
     public String username;
-    public UUID uuid;
+    private final UUID uuid;
 
-    public User(String username) {
+    public User(String username, UUID uuid) {
+        this.uuid = uuid;
         this.username = username;
     }
 
@@ -21,5 +22,9 @@ public class User {
 
     public static User getInstance() {
         return instance;
+    }
+
+    public UUID getUUID() {
+        return uuid;
     }
 }

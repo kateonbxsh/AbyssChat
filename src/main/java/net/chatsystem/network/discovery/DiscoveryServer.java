@@ -1,13 +1,17 @@
 package net.chatsystem.network.discovery;
 
+import net.chatsystem.models.Contact;
 import net.chatsystem.models.ContactList;
 import net.chatsystem.models.User;
 import net.chatsystem.models.exceptions.UsernameAlreadyTakenException;
 import net.chatsystem.network.exceptions.InvalidMessageException;
 import net.chatsystem.network.messages.Message;
+import net.chatsystem.network.messages.MessageBuilder;
+import net.chatsystem.observer.IObserver;
 
 import java.io.IOException;
 import java.net.*;
+import java.util.ArrayList;
 import java.util.Objects;
 
 public class DiscoveryServer extends Thread {
@@ -27,11 +31,16 @@ public class DiscoveryServer extends Thread {
 
     public static final int PORT = 2050;
 
-    private final DatagramSocket socket;
+    private final DatagramSocket socket; // Socket to listen on for discoveries
+    private final ArrayList<IObserver> observers = new ArrayList<>(); // observer
 
     public DiscoveryServer() throws SocketException {
         this.socket = new DatagramSocket(PORT);
         socket.setBroadcast(true);
+    }
+
+    public void addObserver(IObserver observer) {
+        this.observers.add(observer);
     }
 
     @Override
@@ -41,7 +50,7 @@ public class DiscoveryServer extends Thread {
             while(true) {
                 DatagramPacket inPacket = new DatagramPacket(buffer, buffer.length);
                 socket.receive(inPacket);
-                Message msg = Message.parse(inPacket.getData(), inPacket.getAddress());
+                Message msg = Message.parse(inPacket.getData(), inPacket.getLength(), inPacket.getAddress());
                 handleMessage(msg);
                 if (Objects.equals(msg.getContent(), "END")) break;
             }
@@ -53,19 +62,40 @@ public class DiscoveryServer extends Thread {
     }
 
     public void handleMessage(Message message) {
-        //if (message.getAddress().is()) return; // ignore self messages in broadcast
-        System.out.println("Received: " + message.getType() + " from " + message.getAddress());
-        switch(message.getType()) {
-            case DISCOVER_ME -> {
+        if (message.isFromMe()) return; // ignore self messages in broadcast
+        Message.Type type = message.getType();
+        for(IObserver o : observers) {
+            o.onMessage(message);
+        }
+        switch(type) {
+            case DISCOVER_ME, ACKNOWLEDGE_DISCOVER -> {
                 String username = message.getContent();
                 try {
-                    ContactList.getInstance().registerContact(username, message.getAddress());
+                    Contact newContact = ContactList.getInstance().registerContact(username, message.getSenderUUID(), message.getAddress());
+                    for(IObserver o : observers) {
+                        o.onDiscoverContact(newContact);
+                    }
+                    if (type == Message.Type.DISCOVER_ME) {
+                        Message discoverMeToo = new MessageBuilder()
+                                .setType(Message.Type.ACKNOWLEDGE_DISCOVER)
+                                .setContent(User.getInstance().getUsername())
+                                .setAddress(message.getAddress())
+                                .build();
+                        sendMessage(discoverMeToo);
+                    }
+
                 } catch (UsernameAlreadyTakenException ex) {
-                    sendMessage(new Message(Message.Type.USERNAME_ALREADY_TAKEN, "", message.getAddress()));
+                    Message response = new MessageBuilder()
+                            .setType(Message.Type.USERNAME_ALREADY_TAKEN)
+                            .setAddress(message.getAddress())
+                            .build();
+                    sendMessage(response);
                 }
             }
             case USERNAME_ALREADY_TAKEN -> {
-                System.out.println("Username already taken");
+                for(IObserver o : observers) {
+                    o.onNotifyUsernameTaken();
+                }
             }
         }
     }
@@ -83,8 +113,12 @@ public class DiscoveryServer extends Thread {
     public void attemptLogin() {
 
         String username = User.getInstance().getUsername();
-        Message message = new Message(Message.Type.DISCOVER_ME, username, BROADCAST_ADDRESS);
-        sendMessage(message);
+        Message login = new MessageBuilder()
+                .setType(Message.Type.DISCOVER_ME)
+                .setContent(username)
+                .setAddress(BROADCAST_ADDRESS)
+                .build();
+        sendMessage(login);
 
     }
 
