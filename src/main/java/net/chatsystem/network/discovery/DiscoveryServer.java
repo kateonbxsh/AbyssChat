@@ -16,6 +16,17 @@ import java.util.Objects;
 
 public class DiscoveryServer extends Thread {
 
+    private static DiscoveryServer instance;
+
+    public static DiscoveryServer getInstance() {
+        if (instance == null) try {
+            instance = new DiscoveryServer();
+        } catch (SocketException e) {
+            throw new RuntimeException(e);
+        }
+        return instance;
+    }
+
     private static final int MAX_BUFFER_LENGTH = 256;
     private static final InetAddress BROADCAST_ADDRESS;
     private static final InetAddress LOCALHOST;
@@ -47,7 +58,7 @@ public class DiscoveryServer extends Thread {
     public void run() {
         byte[] buffer = new byte[MAX_BUFFER_LENGTH];
         try {
-            while(true) {
+            while (true) {
                 DatagramPacket inPacket = new DatagramPacket(buffer, buffer.length);
                 socket.receive(inPacket);
                 Message msg = Message.parse(inPacket.getData(), inPacket.getLength(), inPacket.getAddress());
@@ -64,15 +75,15 @@ public class DiscoveryServer extends Thread {
     public void handleMessage(Message message) {
         if (message.isFromMe()) return; // ignore self messages in broadcast
         Message.Type type = message.getType();
-        for(IObserver o : observers) {
+        for (IObserver o : observers) {
             o.onMessage(message);
         }
-        switch(type) {
+        switch (type) {
             case DISCOVER_ME, ACKNOWLEDGE_DISCOVER -> {
                 String username = message.getContent();
                 try {
                     Contact newContact = ContactList.getInstance().registerContact(username, message.getSenderUUID(), message.getAddress());
-                    for(IObserver o : observers) {
+                    for (IObserver o : observers) {
                         o.onDiscoverContact(newContact);
                     }
                     if (type == Message.Type.DISCOVER_ME) {
@@ -93,7 +104,7 @@ public class DiscoveryServer extends Thread {
                 }
             }
             case USERNAME_ALREADY_TAKEN -> {
-                for(IObserver o : observers) {
+                for (IObserver o : observers) {
                     o.onNotifyUsernameTaken();
                 }
             }
@@ -105,7 +116,7 @@ public class DiscoveryServer extends Thread {
         DatagramPacket p = new DatagramPacket(buffer, 0, buffer.length, message.getAddress(), PORT);
         try {
             socket.send(p);
-        } catch(IOException ex) {
+        } catch (IOException ex) {
             System.out.println("Error sending message to " + message.getAddress());
         }
     }

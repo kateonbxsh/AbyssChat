@@ -3,7 +3,10 @@ package net.chatsystem.models;
 import net.chatsystem.models.exceptions.UsernameAlreadyTakenException;
 
 import java.net.InetAddress;
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class ContactList {
@@ -13,7 +16,8 @@ public class ContactList {
     private final Map<UUID, Contact> contactsByUUID = new ConcurrentHashMap<>();
 
     public Contact registerContact(String username, UUID uuid, InetAddress address) throws UsernameAlreadyTakenException {
-        if (contacts.containsKey(username) || User.getInstance().getUsername().equals(username)) throw new UsernameAlreadyTakenException();
+        if (contacts.containsKey(username) || User.getInstance().getUsername().equals(username))
+            throw new UsernameAlreadyTakenException();
         Contact contact = new Contact(username, uuid, address);
         contacts.put(username, contact);
         contactsByUUID.put(uuid, contact);
@@ -32,6 +36,10 @@ public class ContactList {
 
     public static ContactList getInstance() {
         return instance;
+    }
+
+    public List<Contact> getContacts() {
+        return contacts.values().stream().toList();
     }
 
 }

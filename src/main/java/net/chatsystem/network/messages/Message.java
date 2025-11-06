@@ -9,7 +9,6 @@ import net.chatsystem.network.exceptions.UnknownSenderException;
 import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.Optional;
 import java.util.UUID;
 
 public class Message {
@@ -33,9 +32,17 @@ public class Message {
         this.address = address;
     }
 
-    public Type getType() { return type; }
-    public String getContent() { return content; }
-    public InetAddress getAddress() { return address; }
+    public Type getType() {
+        return type;
+    }
+
+    public String getContent() {
+        return content;
+    }
+
+    public InetAddress getAddress() {
+        return address;
+    }
 
     public static Message parse(byte[] buffer, int length, InetAddress address) throws InvalidMessageException {
         try {
@@ -66,7 +73,7 @@ public class Message {
     public byte[] toBuffer() {
         byte[] contentBytes = content.getBytes(StandardCharsets.UTF_16LE);
 
-        ByteBuffer buffer = ByteBuffer.allocate(16 + Integer.BYTES + contentBytes.length);
+        ByteBuffer buffer = ByteBuffer.allocate(2 * Long.BYTES + Integer.BYTES + contentBytes.length);
         buffer.putLong(senderUUID.getMostSignificantBits());
         buffer.putLong(senderUUID.getLeastSignificantBits());
         buffer.putInt(type.ordinal());
