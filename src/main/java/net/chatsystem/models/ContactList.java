@@ -24,6 +24,21 @@ public class ContactList {
         return contact;
     }
 
+    public void unregisterContact(Contact contact) {
+        contacts.remove(contact.getUsername());
+        contactsByUUID.remove(contact.getUUID());
+    }
+
+    public void changeContactUsername(UUID uuid, String username) throws UsernameAlreadyTakenException {
+        if (User.getInstance().getUsername().equals(username)) throw new UsernameAlreadyTakenException();
+        if (contacts.containsKey(username)) throw new UsernameAlreadyTakenException();
+        Contact currentContact = contactsByUUID.get(uuid);
+        String oldUsername = currentContact.getUsername();
+        currentContact.setUsername(username);
+        contacts.remove(oldUsername);
+        contacts.put(username, currentContact);
+    }
+
     public Optional<Contact> getContact(String username) {
         if (!contacts.containsKey(username)) return Optional.empty();
         return Optional.of(contacts.get(username));

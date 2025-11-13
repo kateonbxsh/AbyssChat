@@ -11,4 +11,8 @@ public interface IObserver {
 
     void onNotifyUsernameTaken();
 
+    void onContactDisconnect(Contact contact);
+
+    void onContactUsernameChange(Contact contact, String oldUsername, String newUsername);
+
 }

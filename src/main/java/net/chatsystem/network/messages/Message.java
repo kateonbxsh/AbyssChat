@@ -17,7 +17,9 @@ public class Message {
         NONE,
         DISCOVER_ME,
         ACKNOWLEDGE_DISCOVER,
-        USERNAME_ALREADY_TAKEN
+        USERNAME_ALREADY_TAKEN,
+        CHANGE_USERNAME_REQUEST,
+        DISCONNECT
     }
 
     private final UUID senderUUID;

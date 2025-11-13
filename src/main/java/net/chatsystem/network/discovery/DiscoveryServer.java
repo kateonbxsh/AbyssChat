@@ -11,8 +11,7 @@ import net.chatsystem.observer.IObserver;
 
 import java.io.IOException;
 import java.net.*;
-import java.util.ArrayList;
-import java.util.Objects;
+import java.util.*;
 
 public class DiscoveryServer extends Thread {
 
@@ -54,16 +53,25 @@ public class DiscoveryServer extends Thread {
         this.observers.add(observer);
     }
 
+    private boolean connected = false;
+    private boolean running = true;
+
+    public boolean isConnected() {
+        return connected;
+    }
+    public void setConnected() {
+        connected = true;
+    }
+
     @Override
     public void run() {
         byte[] buffer = new byte[MAX_BUFFER_LENGTH];
         try {
-            while (true) {
+            while (running) {
                 DatagramPacket inPacket = new DatagramPacket(buffer, buffer.length);
                 socket.receive(inPacket);
                 Message msg = Message.parse(inPacket.getData(), inPacket.getLength(), inPacket.getAddress());
                 handleMessage(msg);
-                if (Objects.equals(msg.getContent(), "END")) break;
             }
         } catch (IOException ex) {
             System.out.println("IO Exception while reading from UDP socket");
@@ -78,23 +86,15 @@ public class DiscoveryServer extends Thread {
         for (IObserver o : observers) {
             o.onMessage(message);
         }
+        // message types handled without needing connection
         switch (type) {
-            case DISCOVER_ME, ACKNOWLEDGE_DISCOVER -> {
+            case ACKNOWLEDGE_DISCOVER -> {
                 String username = message.getContent();
                 try {
                     Contact newContact = ContactList.getInstance().registerContact(username, message.getSenderUUID(), message.getAddress());
                     for (IObserver o : observers) {
                         o.onDiscoverContact(newContact);
                     }
-                    if (type == Message.Type.DISCOVER_ME) {
-                        Message discoverMeToo = new MessageBuilder()
-                                .setType(Message.Type.ACKNOWLEDGE_DISCOVER)
-                                .setContent(User.getInstance().getUsername())
-                                .setAddress(message.getAddress())
-                                .build();
-                        sendMessage(discoverMeToo);
-                    }
-
                 } catch (UsernameAlreadyTakenException ex) {
                     Message response = new MessageBuilder()
                             .setType(Message.Type.USERNAME_ALREADY_TAKEN)
@@ -107,6 +107,60 @@ public class DiscoveryServer extends Thread {
                 for (IObserver o : observers) {
                     o.onNotifyUsernameTaken();
                 }
+            }
+        }
+
+        if (!connected) return;
+        // message types needing connection
+        switch (type) {
+            case DISCOVER_ME -> {
+                String username = message.getContent();
+                try {
+                    Contact newContact = ContactList.getInstance().registerContact(username, message.getSenderUUID(), message.getAddress());
+                    for (IObserver o : observers) {
+                        o.onDiscoverContact(newContact);
+                    }
+                    Message discoverMeToo = new MessageBuilder()
+                            .setType(Message.Type.ACKNOWLEDGE_DISCOVER)
+                            .setContent(User.getInstance().getUsername())
+                            .setAddress(message.getAddress())
+                            .build();
+                    sendMessage(discoverMeToo);
+                } catch (UsernameAlreadyTakenException ex) {
+                    Message response = new MessageBuilder()
+                            .setType(Message.Type.USERNAME_ALREADY_TAKEN)
+                            .setAddress(message.getAddress())
+                            .build();
+                    sendMessage(response);
+                }
+            }
+            case USERNAME_ALREADY_TAKEN -> {
+                for (IObserver o : observers) {
+                    o.onNotifyUsernameTaken();
+                }
+            }
+            case CHANGE_USERNAME_REQUEST -> {
+                try {
+                    String oldUsername = message.getSender().getUsername();
+                    ContactList.getInstance().changeContactUsername(message.getSenderUUID(), message.getContent());
+                    for (IObserver o : observers) {
+                        o.onContactUsernameChange(message.getSender(), oldUsername, message.getContent());
+                    }
+                } catch (UsernameAlreadyTakenException ignored) {
+                    Message response = new MessageBuilder()
+                            .setType(Message.Type.USERNAME_ALREADY_TAKEN)
+                            .setAddress(message.getAddress())
+                            .build();
+                    sendMessage(response);
+                }
+            }
+            case DISCONNECT -> {
+                Optional<Contact> c = ContactList.getInstance().getContactByUUID(message.getSenderUUID());
+                if (c.isEmpty()) break;
+                for (IObserver o: observers) {
+                    o.onContactDisconnect(c.get());
+                }
+                ContactList.getInstance().unregisterContact(c.get());
             }
         }
     }
@@ -130,7 +184,26 @@ public class DiscoveryServer extends Thread {
                 .setAddress(BROADCAST_ADDRESS)
                 .build();
         sendMessage(login);
+    }
 
+    public void disconnect() {
+        if (!running) return; //if already disconnected, no need to disconnect twice (ShutdownHook re-runs it)
+        Message disconnect = new MessageBuilder()
+                .setType(Message.Type.DISCONNECT)
+                .setAddress(BROADCAST_ADDRESS)
+                .build();
+        sendMessage(disconnect);
+        running = false;
+        connected = false;
+    }
+
+    public void changeUsername(String username) {
+        Message login = new MessageBuilder()
+                .setType(Message.Type.CHANGE_USERNAME_REQUEST)
+                .setContent(username)
+                .setAddress(BROADCAST_ADDRESS)
+                .build();
+        sendMessage(login);
     }
 
 }
