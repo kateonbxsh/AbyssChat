@@ -26,23 +26,24 @@ public class LoginController extends Thread implements IObserver {
 
     @Override
     public void onDiscoverContact(Contact contact) {
-        System.out.println("New contact: " + contact.username);
+        CommandLine.success("+ " + contact.getPrintableName());
     }
 
     @Override
     public void onNotifyUsernameTaken() {
         usernameTaken.set(true);
+        // interrupt this thread so user doesn't have to keep waiting :p
         this.interrupt();
     }
 
     @Override
     public void onContactDisconnect(Contact contact) {
-        System.out.println("Contact disconnected: " + contact.username);
+        CommandLine.error("- " + contact.getPrintableName());
     }
 
     @Override
-    public void onContactUsernameChange(Contact contact, String old, String fresh ) { //can't use new
-        System.out.println("Contact changed username from " + old + " to " + fresh);
+    public void onContactUsernameChange(Contact contact, String old, String fresh ) {
+        CommandLine.info("Contact {} username to {}", contact.getPrintableName(), fresh);
     }
 
     public enum ControllerState {
@@ -60,6 +61,14 @@ public class LoginController extends Thread implements IObserver {
         Scanner sc = new Scanner(System.in);
 
         boolean running = true;
+        CommandLine.clearAll();
+        CommandLine.info("""
+                                                                             
+▄████▄ ▄▄▄▄  ▄▄ ▄▄  ▄▄▄▄  ▄▄▄▄   ▄█████ ▄▄ ▄▄  ▄▄▄ ▄▄▄▄▄▄ 
+██▄▄██ ██▄██ ▀███▀ ███▄▄ ███▄▄   ██     ██▄██ ██▀██  ██   
+██  ██ ██▄█▀   █   ▄▄██▀ ▄▄██▀   ▀█████ ██ ██ ██▀██  ██ 
+
+                """);
         while (running) {
             try {
                 switch (state) {
@@ -70,54 +79,72 @@ public class LoginController extends Thread implements IObserver {
                 }
             } catch (InterruptedException e) {
                 switch (state) {
-                    case NOT_LOGGEDIN, CHANGING_USERNAME ->
-                            System.out.println("Username already taken, try again.");
+                    case NOT_LOGGEDIN, CHANGING_USERNAME -> {
+                            CommandLine.clearLine();
+                            CommandLine.error("Username already taken, try again.");
+                    }
+                    default -> {}
                 }
             }
 
         }
         sc.close();
-        System.out.println("Disconnected. Goodbye!");
+        CommandLine.error("Disconnected. Goodbye!");
     }
 
     private void handleNotLoggedIn(Scanner sc) throws InterruptedException {
-        System.out.print("To log in, please input a username: ");
-        String usernameInput = sc.nextLine().trim();
+
+        String usernameInput = CommandLine.prompt("To log in, please input a username", sc);
 
         if (usernameInput.isEmpty()) {
-            System.out.println("Username cannot be empty. Try again.");
+            CommandLine.clearLine();
+            CommandLine.error("Username cannot be empty. Try again.");
             return;
         }
 
         usernameTaken.set(false);
         user.username = usernameInput;
         DiscoveryServer.getInstance().attemptLogin();
-        System.out.println("Logging in...");
+        CommandLine.clearLine();
+        CommandLine.info("Logging in...");
         Thread.sleep(3000);
         DiscoveryServer.getInstance().setConnected();
 
         if (usernameTaken.get()) {
-            System.out.println("Username already taken, try again.");
-            // Stay not logged-in
+            CommandLine.clearLine();
+            CommandLine.error("Username already taken. Try again.");
+            // stay not logged-in
         } else {
-            System.out.println("You are now logged in! Try /contacts to see contacts, or /me to see your username");
+            CommandLine.clearLine();
+            CommandLine.success("You are now logged in!");
+            CommandLine.info("Start with {} for a list of available commands", "/help");
             loggedIn.set(true);
             state = ControllerState.WAITING_FOR_COMMAND;
         }
     }
 
     private void handleWaitingForCommand(Scanner sc) throws InterruptedException {
-        String command = sc.nextLine().trim();
 
+        String command = CommandLine.prompt("", sc);
         switch (command) {
+            case "/help" -> {
+                CommandLine.success("Available commands");
+                CommandLine.info("{} > you just tried it you know what it does :p", "/help");
+                CommandLine.info("{} > check your friend list", "/contacts");
+                CommandLine.info("{} > sometimes it's nice to know who you truly are", "/me");
+                CommandLine.info("{} > but other times it's good to make a change", "/changeusername");
+                CommandLine.info("{} > would hate to see you leave!", "/disconnect");
+            }
             case "/contacts" -> {
-                int i = 1;
+                if (ContactList.getInstance().getContacts().isEmpty()) {
+                    CommandLine.error("You're all alone :( but it's okay!");
+                }
                 for (Contact contact : ContactList.getInstance().getContacts()) {
-                    System.out.printf("%d. %s (%s)%n", i++, contact.getUsername(), contact.getUUID());
+                    CommandLine.info(contact.getPrintableName());
                 }
             }
             case "/me" -> {
-                System.out.printf("You are %s (%s).%n", user.getUsername(), user.getUUID());
+                CommandLine.info(user.getPrintableName());
             }
             case "/changeusername" -> {
                 state = ControllerState.CHANGING_USERNAME;
@@ -126,39 +153,46 @@ public class LoginController extends Thread implements IObserver {
                 DiscoveryServer.getInstance().disconnect();
                 loggedIn.set(false);
                 state = ControllerState.END;
-                System.out.println("Disconnecting...");
+                CommandLine.info("Disconnecting...");
             }
-            case "" -> {} // Ignore empty input
-            default -> System.out.println("Unknown command. Available: /contacts, /me, /changeusername, /disconnect");
+            case "" -> {} // ignore empty input
+            default -> CommandLine.error("Unknown command. Try {}", "/help");
         }
     }
 
     private void handleChangingUsername(Scanner sc) throws InterruptedException {
-        System.out.print("Please input your new username, to cancel, write /cancel: ");
-        String input = sc.nextLine().trim();
+        
+        String input = CommandLine.prompt("Please input your new username, to cancel, write /cancel", sc);
+        CommandLine.clearLine();
 
         if (input.startsWith("/cancel")) {
-            System.out.println("Username change cancelled.");
+            CommandLine.error("Username change cancelled");
             state = ControllerState.WAITING_FOR_COMMAND;
             return;
         }
 
         if (input.isEmpty()) {
-            System.out.println("Username cannot be empty. Try again or /cancel.");
+            CommandLine.error("Username cannot be empty. Try again or {}", "/cancel");
+            return;
+        }
+
+        if (input.equals(user.getUsername())) {
+            CommandLine.error("You're already called {}, buddy", input);
             return;
         }
 
         usernameTaken.set(false);
         DiscoveryServer.getInstance().changeUsername(input);
-        System.out.println("Changing username...");
+        CommandLine.info("Changing username...");
         Thread.sleep(3000);
 
+        CommandLine.clearLine();
         if (usernameTaken.get()) {
-            System.out.println("Username already taken. Try again or /cancel.");
+            CommandLine.error("Username already taken. Try again or {}", "/cancel");
             // Stay in changing_username
         } else {
             user.username = input;
-            System.out.println("Username successfully changed to: " + input);
+            CommandLine.success("Username successfully changed to {}", input);
             state = ControllerState.WAITING_FOR_COMMAND;
         }
     }

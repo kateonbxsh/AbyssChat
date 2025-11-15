@@ -2,6 +2,8 @@ package net.chatsystem.models;
 
 import java.util.UUID;
 
+import net.chatsystem.controller.CommandLine;
+
 public class User {
 
     public static final User instance = new User("", UUID.randomUUID());
@@ -27,5 +29,10 @@ public class User {
 
     public UUID getUUID() {
         return uuid;
+    }
+
+    public String getPrintableName() {
+        String ID = getUUID().toString().subSequence(0, 6).toString().toUpperCase();
+        return CommandLine.RESET + getUsername() + CommandLine.FG_CYAN + "#" + ID;
     }
 }

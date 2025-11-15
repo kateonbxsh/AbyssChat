@@ -25,7 +25,7 @@ mvn compile
 
 From the project directory, run:
 ```bash
-mvn exec:java -Dexec.mainClass="net.chatsystem.Client
+mvn exec:java -Dexec.mainClass="net.chatsystem.Client"
 ```
 
 ### Usage
@@ -33,12 +33,13 @@ mvn exec:java -Dexec.mainClass="net.chatsystem.Client
 - After running, input your username to login.
 - Then use one of these commands
 
-| Command           | Description              |
-|-------------------|--------------------------|
-| `/contacts`       | Show your contact list   |
-| `/me`             | Show your profile        |
-| `/changeusername` | Self-explanatory         |
-| `/disconnect`     | Disconnect from the chat |
+| Command           | Description                       |
+|-------------------|-----------------------------------|
+| `/help`           | Show list of available commands   |
+| `/contacts`       | Show your contact list            |
+| `/me`             | Show your profile                 |
+| `/changeusername` | Self-explanatory                  |
+| `/disconnect`     | Disconnect from the chat          |
 
 - You may also close the chat directly, it will automatically disconnect you
 

@@ -28,12 +28,10 @@ public class DiscoveryServer extends Thread {
 
     private static final int MAX_BUFFER_LENGTH = 256;
     private static final InetAddress BROADCAST_ADDRESS;
-    private static final InetAddress LOCALHOST;
 
     static {
         try {
             BROADCAST_ADDRESS = InetAddress.getByName("255.255.255.255");
-            LOCALHOST = InetAddress.getLocalHost();
         } catch (UnknownHostException e) {
             throw new RuntimeException(e);
         }
@@ -142,6 +140,7 @@ public class DiscoveryServer extends Thread {
             case CHANGE_USERNAME_REQUEST -> {
                 try {
                     String oldUsername = message.getSender().getUsername();
+                    // this could throw UsernameAlreadyTakenException
                     ContactList.getInstance().changeContactUsername(message.getSenderUUID(), message.getContent());
                     for (IObserver o : observers) {
                         o.onContactUsernameChange(message.getSender(), oldUsername, message.getContent());
