@@ -7,6 +7,7 @@ import net.chatsystem.network.exceptions.InvalidMessageException;
 import net.chatsystem.network.exceptions.UnknownSenderException;
 
 import java.net.InetAddress;
+import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
@@ -67,7 +68,7 @@ public class Message {
 
             return new Message(uuid, type, content, address);
 
-        } catch (IndexOutOfBoundsException | IllegalArgumentException e) {
+        } catch (IndexOutOfBoundsException | IllegalArgumentException | BufferUnderflowException e) {
             throw new InvalidMessageException("Invalid message format: " + e.getMessage());
         }
     }

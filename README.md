@@ -16,16 +16,23 @@ discover each other using a contact list.
 
 ### Compilation
 
-From the project directory, run:
+To compile the project, from the project directory, run:
 ```bash
 mvn compile
 ```
 
 ### Running 
 
-From the project directory, run:
+To run the app, from the project directory, run:
 ```bash
-mvn exec:java -Dexec.mainClass="net.chatsystem.Client"
+mvn exec:java -D exec.mainClass="net.chatsystem.Client"
+```
+
+### Unit tests 
+
+To run unit tests, from the project directory, run:
+```bash
+mvn test
 ```
 
 ### Usage

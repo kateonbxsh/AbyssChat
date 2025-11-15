@@ -57,4 +57,10 @@ public class ContactList {
         return contacts.values().stream().toList();
     }
 
+    // helper method for tests, doesn't really make sense to use it in the app
+    public void flush() {
+        contacts.clear();
+        contactsByUUID.clear();
+    }
+
 }

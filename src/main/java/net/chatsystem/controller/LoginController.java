@@ -22,9 +22,6 @@ public class LoginController extends Thread implements IObserver {
     public AtomicBoolean usernameTaken = new AtomicBoolean(false);
 
     @Override
-    public void onMessage(Message message) {}
-
-    @Override
     public void onDiscoverContact(Contact contact) {
         CommandLine.success("+ " + contact.getPrintableName());
     }

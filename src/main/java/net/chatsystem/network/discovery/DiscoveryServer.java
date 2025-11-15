@@ -1,5 +1,14 @@
 package net.chatsystem.network.discovery;
 
+import java.io.IOException;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.net.SocketException;
+import java.net.UnknownHostException;
+import java.util.ArrayList;
+import java.util.Optional;
+
 import net.chatsystem.models.Contact;
 import net.chatsystem.models.ContactList;
 import net.chatsystem.models.User;
@@ -9,25 +18,17 @@ import net.chatsystem.network.messages.Message;
 import net.chatsystem.network.messages.MessageBuilder;
 import net.chatsystem.observer.IObserver;
 
-import java.io.IOException;
-import java.net.*;
-import java.util.*;
-
 public class DiscoveryServer extends Thread {
 
     private static DiscoveryServer instance;
 
     public static DiscoveryServer getInstance() {
-        if (instance == null) try {
-            instance = new DiscoveryServer();
-        } catch (SocketException e) {
-            throw new RuntimeException(e);
-        }
+        if (instance == null) instance = new DiscoveryServer();
         return instance;
     }
 
     private static final int MAX_BUFFER_LENGTH = 256;
-    private static final InetAddress BROADCAST_ADDRESS;
+    public static final InetAddress BROADCAST_ADDRESS;
 
     static {
         try {
@@ -39,10 +40,10 @@ public class DiscoveryServer extends Thread {
 
     public static final int PORT = 2050;
 
-    private final DatagramSocket socket; // Socket to listen on for discoveries
+    private DatagramSocket socket; // Socket to listen on for discoveries
     private final ArrayList<IObserver> observers = new ArrayList<>(); // observer
 
-    public DiscoveryServer() throws SocketException {
+    public void bind() throws SocketException {
         this.socket = new DatagramSocket(PORT);
         socket.setBroadcast(true);
     }
@@ -60,9 +61,11 @@ public class DiscoveryServer extends Thread {
     public void setConnected() {
         connected = true;
     }
+    
 
     @Override
     public void run() {
+        
         byte[] buffer = new byte[MAX_BUFFER_LENGTH];
         try {
             while (running) {

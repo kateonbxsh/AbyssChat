@@ -5,14 +5,14 @@ import net.chatsystem.network.messages.Message;
 
 public interface IObserver {
 
-    void onMessage(Message message);
+    default void onMessage(Message message) {};
 
-    void onDiscoverContact(Contact contact);
+    default void onDiscoverContact(Contact contact) {};
 
-    void onNotifyUsernameTaken();
+    default void onNotifyUsernameTaken() {};
 
-    void onContactDisconnect(Contact contact);
+    default void onContactDisconnect(Contact contact) {};
 
-    void onContactUsernameChange(Contact contact, String oldUsername, String newUsername);
+    default void onContactUsernameChange(Contact contact, String oldUsername, String newUsername) {};
 
 }

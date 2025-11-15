@@ -1,6 +1,9 @@
 package net.chatsystem;
 
 
+import java.net.SocketException;
+
+import net.chatsystem.controller.CommandLine;
 import net.chatsystem.controller.LoginController;
 import net.chatsystem.network.discovery.DiscoveryServer;
 
@@ -18,6 +21,13 @@ public class Client {
         DiscoveryServer server = DiscoveryServer.getInstance();
         LoginController controller = LoginController.getInstance();
         server.addObserver(controller);
+
+        // bind the server
+        try {
+            server.bind();
+        } catch(SocketException e) {
+            CommandLine.error("Could not start app, error: {}", e.getMessage());
+        }
 
         // add shutdown hook, in case user exits without disconnecting
         Runtime.getRuntime().addShutdownHook(new ShutdownDisconnect());
