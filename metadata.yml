@@ -1,8 +1,7 @@
-project:
-  students:
-    - nawfal:
-        name: Nawfal El Hammadi
-        class: 4IR C1
-    - aouab:
-        name: Aouab Admou
-        class: 4IR C1
+group: C1  
+names:  
+  - Nawfal El Hammadi
+  - Aouab Admou
+emails:  
+  - admou@insa-toulouse.fr
+  - el-hammadi@insa-toulouse.fr
