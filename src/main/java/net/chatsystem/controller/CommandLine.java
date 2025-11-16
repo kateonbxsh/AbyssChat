@@ -38,9 +38,9 @@ public class CommandLine {
 
         System.out.print("\r");
         System.out.flush();
-        System.out.printf(color + out + RESET);
+        System.out.println(color + out + RESET);
         if (inPrompt) {
-            System.out.print(prompt);
+            System.out.print(pendingPrompt);
         }
     }
 
@@ -67,13 +67,13 @@ public class CommandLine {
     }
 
     private static boolean inPrompt = false;
-    private static String prompt;
+    private static String pendingPrompt;
 
     public static String prompt(String prompt, Scanner scanner) {
         
         inPrompt = true;
-        prompt = FG_CYAN + prompt + BOLD + " > " + RESET;
-        System.out.print(prompt);
+        pendingPrompt = FG_CYAN + prompt + BOLD + " > " + RESET;
+        System.out.print(pendingPrompt);
         try {
             String answer = scanner.nextLine().trim();
             inPrompt = false;

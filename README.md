@@ -14,6 +14,14 @@ discover each other using a contact list.
 
 ## How to run
 
+### Pre-requisites
+
+Before proceeding, make sure you have:
+- Java 21+
+- Maven 3+
+
+installed.
+
 ### Compilation
 
 To compile the project, from the project directory, run:
@@ -28,6 +36,22 @@ To run the app, from the project directory, run:
 mvn exec:java -D exec.mainClass="net.chatsystem.Client"
 ```
 
+If you require to try out the app locally on the same computer (up to two clients), you must run the app with the following arguments
+
+For the first client
+```bash
+mvn exec:java -D exec.mainClass="net.chatsystem.Client" -D exec.args="--local1"
+```
+
+For the second client
+```bash
+mvn exec:java -D exec.mainClass="net.chatsystem.Client" -D exec.args="--local2"
+```
+What this will do is set the sending and receiving ports to different values, and cross them for the two apps (local1 receive port is local2 send port, and vice versa)
+
+> [!IMPORTANT]  
+> In both cases, make sure ports 2050, 2051 and 2052 are open and free
+
 ### Unit tests 
 
 To run unit tests, from the project directory, run:
@@ -35,7 +59,7 @@ To run unit tests, from the project directory, run:
 mvn test
 ```
 
-### Usage
+### App specification
 
 - After running, input your username to login.
 - Then use one of these commands
@@ -48,7 +72,7 @@ mvn test
 | `/changeusername` | Self-explanatory                  |
 | `/disconnect`     | Disconnect from the chat          |
 
-- You may also close the chat directly, it will automatically disconnect you
+- You may also close the chat directly, it will automatically let everyone know you disconnected
 
 
 

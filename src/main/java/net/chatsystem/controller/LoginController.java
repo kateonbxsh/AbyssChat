@@ -75,9 +75,14 @@ public class LoginController extends Thread implements IObserver {
                 }
             } catch (InterruptedException e) {
                 switch (state) {
-                    case NOT_LOGGEDIN, CHANGING_USERNAME -> {
-                            CommandLine.clearLine();
-                            CommandLine.error("Username already taken, try again.");
+                    case CHANGING_USERNAME -> {
+                        CommandLine.clearLine();
+                        CommandLine.error("Username already taken, try again.");
+                    }
+                    case NOT_LOGGEDIN -> {
+                        CommandLine.clearLine();
+                        CommandLine.error("Username already taken, try again.");
+                        DiscoveryServer.getInstance().setDisconnected();
                     }
                     default -> {}
                 }
@@ -102,16 +107,19 @@ public class LoginController extends Thread implements IObserver {
         user.username = usernameInput;
         DiscoveryServer.getInstance().attemptLogin();
         CommandLine.clearLine();
+        DiscoveryServer.getInstance().setConnected();
+        // while trying to log in, the user holds on to its username
+        // this is in case while waiting for confirmation, someone tries to take that username
+        // in which case they will consider that they took it first
         CommandLine.info("Logging in...");
         Thread.sleep(3000);
-        DiscoveryServer.getInstance().setConnected();
 
         if (usernameTaken.get()) {
             CommandLine.clearLine();
             CommandLine.error("Username already taken. Try again.");
+            DiscoveryServer.getInstance().setDisconnected();
             // stay not logged-in
         } else {
-            CommandLine.clearLine();
             CommandLine.success("You are now logged in!");
             CommandLine.info("Start with {} for a list of available commands", "/help");
             loggedIn.set(true);

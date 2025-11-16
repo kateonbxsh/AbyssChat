@@ -2,6 +2,7 @@ package net.chatsystem;
 
 
 import java.net.SocketException;
+import java.util.List;
 
 import net.chatsystem.controller.CommandLine;
 import net.chatsystem.controller.LoginController;
@@ -21,6 +22,16 @@ public class Client {
         DiscoveryServer server = DiscoveryServer.getInstance();
         LoginController controller = LoginController.getInstance();
         server.addObserver(controller);
+
+        // if needing to run the project locally (on one computer, set a send and receive port)
+        if (List.of(args).contains("--local1")) {
+            DiscoveryServer.SEND_PORT = 2501;
+            DiscoveryServer.RECEIVE_PORT = 2502;
+        }
+        if (List.of(args).contains("--local2")) {
+            DiscoveryServer.SEND_PORT = 2502;
+            DiscoveryServer.RECEIVE_PORT = 2501;
+        }
 
         // bind the server
         try {

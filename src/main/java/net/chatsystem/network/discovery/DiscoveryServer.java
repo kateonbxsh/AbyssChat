@@ -38,13 +38,14 @@ public class DiscoveryServer extends Thread {
         }
     }
 
-    public static final int PORT = 2050;
+    public static int SEND_PORT = 2050;
+    public static int RECEIVE_PORT = 2050;
 
     private DatagramSocket socket; // Socket to listen on for discoveries
     private final ArrayList<IObserver> observers = new ArrayList<>(); // observer
 
     public void bind() throws SocketException {
-        this.socket = new DatagramSocket(PORT);
+        this.socket = new DatagramSocket(RECEIVE_PORT);
         socket.setBroadcast(true);
     }
 
@@ -61,6 +62,9 @@ public class DiscoveryServer extends Thread {
     public void setConnected() {
         connected = true;
     }
+    public void setDisconnected() {
+        connected = false;
+    }
     
 
     @Override
@@ -74,8 +78,7 @@ public class DiscoveryServer extends Thread {
                 Message msg = Message.parse(inPacket.getData(), inPacket.getLength(), inPacket.getAddress());
                 handleMessage(msg);
             }
-        } catch (IOException ex) {
-            System.out.println("IO Exception while reading from UDP socket");
+        } catch (IOException ignored) {
         } catch (InvalidMessageException ex) {
             System.out.println(ex.getMessage());
         }
@@ -169,7 +172,7 @@ public class DiscoveryServer extends Thread {
 
     public void sendMessage(Message message) {
         byte[] buffer = message.toBuffer();
-        DatagramPacket p = new DatagramPacket(buffer, 0, buffer.length, message.getAddress(), PORT);
+        DatagramPacket p = new DatagramPacket(buffer, 0, buffer.length, message.getAddress(), SEND_PORT);
         try {
             socket.send(p);
         } catch (IOException ex) {
@@ -197,6 +200,7 @@ public class DiscoveryServer extends Thread {
         sendMessage(disconnect);
         running = false;
         connected = false;
+        socket.close();
     }
 
     public void changeUsername(String username) {
