@@ -33,6 +33,6 @@ public class User {
 
     public String getPrintableName() {
         String ID = getUUID().toString().subSequence(0, 6).toString().toUpperCase();
-        return CommandLine.RESET + getUsername() + CommandLine.FG_CYAN + "#" + ID;
+        return CommandLine.FG_WHITE + getUsername() + CommandLine.FG_CYAN + "#" + ID;
     }
 }

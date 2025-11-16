@@ -1,14 +1,13 @@
 package net.chatsystem.controller;
 
+import java.util.Scanner;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import net.chatsystem.models.Contact;
 import net.chatsystem.models.ContactList;
 import net.chatsystem.models.User;
 import net.chatsystem.network.discovery.DiscoveryServer;
-import net.chatsystem.network.messages.Message;
 import net.chatsystem.observer.IObserver;
-
-import java.util.Scanner;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public class LoginController extends Thread implements IObserver {
 
@@ -40,7 +39,7 @@ public class LoginController extends Thread implements IObserver {
 
     @Override
     public void onContactUsernameChange(Contact contact, String old, String fresh ) {
-        CommandLine.info("Contact {} username to {}", contact.getPrintableName(), fresh);
+        CommandLine.info("Contact {} is now {}", old, fresh);
     }
 
     public enum ControllerState {

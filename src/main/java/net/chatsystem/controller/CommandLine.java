@@ -21,7 +21,7 @@ public class CommandLine {
     public static final String FG_WHITE = "\033[97m";
 
     // helper method to format messages using a parameters
-    private static String formatMessage(String color, String template, Object... params) {
+    private static void printFormatted(String color, String template, Object... params) {
         String out = template;
 
         for (Object p : params) {
@@ -36,19 +36,24 @@ public class CommandLine {
                 + out.substring(id + 2);
         }
 
-        return color + out + RESET;
+        System.out.print("\r");
+        System.out.flush();
+        System.out.printf(color + out + RESET);
+        if (inPrompt) {
+            System.out.print(prompt);
+        }
     }
 
     public static void info(String msg, Object... params) {
-        System.out.println(formatMessage(FG_CYAN, msg, params));
+        printFormatted(FG_CYAN, msg, params);
     }
 
     public static void success(String msg, Object... params) {
-        System.out.println(formatMessage(BOLD + FG_GREEN, msg, params));
+        printFormatted(BOLD + FG_GREEN, msg, params);
     }
 
     public static void error(String msg, Object... params) {
-        System.out.println(formatMessage(BOLD + FG_RED, msg, params));
+        printFormatted(BOLD + FG_RED, msg, params);
     }
 
     public static void clearLine() {
@@ -61,10 +66,18 @@ public class CommandLine {
         System.out.flush();
     }
 
+    private static boolean inPrompt = false;
+    private static String prompt;
+
     public static String prompt(String prompt, Scanner scanner) {
-        System.out.print(FG_CYAN + prompt + BOLD + " > " + RESET);
+        
+        inPrompt = true;
+        prompt = FG_CYAN + prompt + BOLD + " > " + RESET;
+        System.out.print(prompt);
         try {
-            return scanner.nextLine().trim();
+            String answer = scanner.nextLine().trim();
+            inPrompt = false;
+            return answer;
         } catch(Exception e) {
             clearAll();
             return "";
