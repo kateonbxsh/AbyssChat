@@ -14,7 +14,7 @@ public class Chat {
 
     public Contact recipient;
 
-    public void Chat(Contact with) throws UnableToStartChatException, UnknownRecipientException {
+    public Chat(Contact with) throws UnableToStartChatException, UnknownRecipientException {
         this.recipient = with;
         ChatServer.getInstance().initiateChat(with);
     }
@@ -25,7 +25,7 @@ public class Chat {
                 .setType(Message.Type.CHAT_MESSAGE)
                 .setContent(chat).build();
         try {
-            ChatServer.getInstance().sendMessage(msg);
+            ChatServer.getInstance().sendMessage(this.recipient.getUUID(), msg);
         } catch(IOException exception) {
             throw new ChatException(exception);
         }

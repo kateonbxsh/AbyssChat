@@ -1,11 +1,14 @@
 package net.chatsystem;
 
 
+import java.io.IOException;
 import java.net.SocketException;
 import java.util.List;
 
 import net.chatsystem.controller.CommandLine;
 import net.chatsystem.controller.LoginController;
+import net.chatsystem.network.chat.Chat;
+import net.chatsystem.network.chat.ChatServer;
 import net.chatsystem.network.discovery.DiscoveryServer;
 
 public class Client {
@@ -21,6 +24,8 @@ public class Client {
 
         DiscoveryServer server = DiscoveryServer.getInstance();
         LoginController controller = LoginController.getInstance();
+        ChatServer chat = ChatServer.getInstance();
+        chat.addObserver(controller);
         server.addObserver(controller);
 
         // if needing to run the project locally (on one computer, set a send and receive port)
@@ -35,8 +40,9 @@ public class Client {
 
         // bind the server
         try {
+            chat.bind();
             server.bind();
-        } catch(SocketException e) {
+        } catch(IOException e) {
             CommandLine.error("Could not start app, error: {}", e.getMessage());
         }
 
@@ -46,10 +52,12 @@ public class Client {
         // start threads
         controller.start();
         server.start();
+        chat.start();
 
         // wait for threads
         server.join();
         controller.join();
+        chat.join();
 
     }
 }

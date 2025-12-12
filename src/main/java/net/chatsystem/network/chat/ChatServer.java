@@ -1,5 +1,6 @@
 package net.chatsystem.network.chat;
 
+import net.chatsystem.controller.CommandLine;
 import net.chatsystem.models.Contact;
 import net.chatsystem.models.ContactList;
 import net.chatsystem.network.exceptions.InvalidMessageException;
@@ -88,16 +89,16 @@ public class ChatServer extends Thread {
                     .setType(Message.Type.CHAT_IDENTIFY)
                     .build();
             try {
-                sendMessage(identify);
+                sendMessage(contact.getUUID(), identify);
             } catch(IOException io) {
                 throw new UnableToStartChatException(io);
             }
         } // otherwise, we already have a client handler for the socket
     }
 
-    public void sendMessage(Message message) throws UnknownRecipientException, IOException {
-        if (!socketMap.containsKey(message.getRecipientUUID())) throw new UnknownRecipientException(message.getRecipientUUID());
-        Socket socket = socketMap.get(message.getRecipientUUID());
+    public void sendMessage(UUID recipient, Message message) throws UnknownRecipientException, IOException {
+        if (!socketMap.containsKey(recipient)) throw new UnknownRecipientException(recipient);
+        Socket socket = socketMap.get(recipient);
         byte[] buffer = message.toBuffer();
         DataOutputStream out = new DataOutputStream(socket.getOutputStream());
         out.writeInt(buffer.length);
@@ -144,11 +145,13 @@ public class ChatServer extends Thread {
                 try {
                     if (identified) {
                         socketMap.remove(this.contact.getUUID());
+                    }
+                    if (!socket.isClosed()) {
                         for(IObserver o : observers) {
                             o.onChatClose(this.contact);
                         }
+                        socket.close();
                     }
-                    socket.close();
                 } catch (IOException ignored) {}
             }
         }
