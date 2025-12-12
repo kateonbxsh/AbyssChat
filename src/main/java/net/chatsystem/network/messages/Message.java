@@ -4,6 +4,7 @@ import net.chatsystem.models.Contact;
 import net.chatsystem.models.ContactList;
 import net.chatsystem.models.User;
 import net.chatsystem.network.exceptions.InvalidMessageException;
+import net.chatsystem.network.exceptions.UnableToStartChatException;
 import net.chatsystem.network.exceptions.UnknownSenderException;
 
 import java.net.InetAddress;
@@ -16,20 +17,27 @@ public class Message {
 
     public enum Type {
         NONE,
+
+        // udp
         DISCOVER_ME,
         ACKNOWLEDGE_DISCOVER,
         USERNAME_ALREADY_TAKEN,
         CHANGE_USERNAME_REQUEST,
-        DISCONNECT
+        DISCONNECT,
+
+        // tcp
+        CHAT_IDENTIFY,
+        CHAT_MESSAGE,
+
     }
 
-    private final UUID senderUUID;
+    private final UUID userUUID;
     private final Type type;
     private final String content;
     private final InetAddress address;
 
     public Message(UUID senderUUID, Type type, String content, InetAddress address) {
-        this.senderUUID = senderUUID;
+        this.userUUID = senderUUID;
         this.type = type;
         this.content = content;
         this.address = address;
@@ -77,8 +85,8 @@ public class Message {
         byte[] contentBytes = content.getBytes(StandardCharsets.UTF_16LE);
 
         ByteBuffer buffer = ByteBuffer.allocate(2 * Long.BYTES + Integer.BYTES + contentBytes.length);
-        buffer.putLong(senderUUID.getMostSignificantBits());
-        buffer.putLong(senderUUID.getLeastSignificantBits());
+        buffer.putLong(userUUID.getMostSignificantBits());
+        buffer.putLong(userUUID.getLeastSignificantBits());
         buffer.putInt(type.ordinal());
         buffer.put(contentBytes);
 
@@ -86,15 +94,18 @@ public class Message {
     }
 
     public boolean isFromMe() {
-        return this.senderUUID.equals(User.getInstance().getUUID());
+        return this.userUUID.equals(User.getInstance().getUUID());
     }
 
     public UUID getSenderUUID() {
-        return senderUUID;
+        return userUUID;
+    }
+    public UUID getRecipientUUID() {
+        return userUUID;
     }
 
-    public Contact getSender() {
-        return ContactList.getInstance().getContactByUUID(senderUUID).orElseThrow(UnknownSenderException::new);
+    public Contact getSender() throws UnknownSenderException {
+        return ContactList.getInstance().getContactByUUID(userUUID).orElseThrow(UnknownSenderException::new);
     }
 
 }

@@ -14,6 +14,7 @@ import net.chatsystem.models.ContactList;
 import net.chatsystem.models.User;
 import net.chatsystem.models.exceptions.UsernameAlreadyTakenException;
 import net.chatsystem.network.exceptions.InvalidMessageException;
+import net.chatsystem.network.exceptions.UnknownSenderException;
 import net.chatsystem.network.messages.Message;
 import net.chatsystem.network.messages.MessageBuilder;
 import net.chatsystem.observer.IObserver;
@@ -157,7 +158,7 @@ public class DiscoveryServer extends Thread {
                             .setAddress(message.getAddress())
                             .build();
                     sendMessage(response);
-                }
+                } catch (UnknownSenderException ignored) {}
             }
             case DISCONNECT -> {
                 Optional<Contact> c = ContactList.getInstance().getContactByUUID(message.getSenderUUID());

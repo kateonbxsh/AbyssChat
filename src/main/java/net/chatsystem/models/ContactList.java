@@ -3,19 +3,16 @@ package net.chatsystem.models;
 import net.chatsystem.models.exceptions.UsernameAlreadyTakenException;
 
 import java.net.InetAddress;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class ContactList {
 
     public static final ContactList instance = new ContactList();
-    private final Map<String, Contact> contacts = new ConcurrentHashMap<>();
-    private final Map<UUID, Contact> contactsByUUID = new ConcurrentHashMap<>();
+    private final Map<String, Contact> contacts = new HashMap<>();
+    private final Map<UUID, Contact> contactsByUUID = new HashMap<>();
 
-    public Contact registerContact(String username, UUID uuid, InetAddress address) throws UsernameAlreadyTakenException {
+    public synchronized Contact registerContact(String username, UUID uuid, InetAddress address) throws UsernameAlreadyTakenException {
         if (contacts.containsKey(username) || User.getInstance().getUsername().equals(username))
             throw new UsernameAlreadyTakenException();
         Contact contact = new Contact(username, uuid, address);
@@ -24,12 +21,12 @@ public class ContactList {
         return contact;
     }
 
-    public void unregisterContact(Contact contact) {
+    public synchronized void unregisterContact(Contact contact) {
         contacts.remove(contact.getUsername());
         contactsByUUID.remove(contact.getUUID());
     }
 
-    public void changeContactUsername(UUID uuid, String username) throws UsernameAlreadyTakenException {
+    public synchronized void changeContactUsername(UUID uuid, String username) throws UsernameAlreadyTakenException {
         if (User.getInstance().getUsername().equals(username)) throw new UsernameAlreadyTakenException();
         if (contacts.containsKey(username)) throw new UsernameAlreadyTakenException();
         Contact currentContact = contactsByUUID.get(uuid);
@@ -39,12 +36,12 @@ public class ContactList {
         contacts.put(username, currentContact);
     }
 
-    public Optional<Contact> getContact(String username) {
+    public synchronized Optional<Contact> getContact(String username) {
         if (!contacts.containsKey(username)) return Optional.empty();
         return Optional.of(contacts.get(username));
     }
 
-    public Optional<Contact> getContactByUUID(UUID uuid) {
+    public synchronized Optional<Contact> getContactByUUID(UUID uuid) {
         if (!contactsByUUID.containsKey(uuid)) return Optional.empty();
         return Optional.of(contactsByUUID.get(uuid));
     }
