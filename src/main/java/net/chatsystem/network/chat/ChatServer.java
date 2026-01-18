@@ -1,8 +1,6 @@
 package net.chatsystem.network.chat;
 
-import net.chatsystem.controller.CommandLine;
 import net.chatsystem.models.Contact;
-import net.chatsystem.models.ContactList;
 import net.chatsystem.network.exceptions.InvalidMessageException;
 import net.chatsystem.network.exceptions.UnableToStartChatException;
 import net.chatsystem.network.exceptions.UnknownRecipientException;
@@ -14,11 +12,14 @@ import net.chatsystem.observer.IObserver;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.SocketAddress;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -34,7 +35,7 @@ public class ChatServer extends Thread {
     private ServerSocket serverSocket;
     private final ExecutorService pool = Executors.newCachedThreadPool();
     private final List<IObserver> observers = new ArrayList<>();
-    private final Map<UUID, Socket> socketMap = new HashMap<>();
+    private final Map<InetAddress, Socket> socketMap = new HashMap<>();
     public int LISTEN_PORT = 2500;
     private volatile boolean running = true;
 
@@ -42,7 +43,7 @@ public class ChatServer extends Thread {
         setDaemon(true);
     }
 
-    public void addObserver(IObserver o) {
+    public synchronized void addObserver(IObserver o) {
         observers.add(o);
     }
 
@@ -71,17 +72,17 @@ public class ChatServer extends Thread {
         pool.shutdownNow();
     }
 
-    public void initiateChat(Contact contact) throws UnableToStartChatException, UnknownRecipientException {
+    public synchronized void initiateChat(Contact contact) throws UnableToStartChatException, UnknownRecipientException {
         // look for contact in socket map, if not found, initiate connection with contact
-        if (!socketMap.containsKey(contact.getUUID())) {
+        if (!socketMap.containsKey(contact.getAddress())) {
             // initiate connection
             Socket newSocket = new Socket();
             try {
-                newSocket.connect(new InetSocketAddress(contact.getRemoteAddress(), LISTEN_PORT));
+                newSocket.connect(new InetSocketAddress(contact.getAddress(), LISTEN_PORT));
             } catch (IOException ioException) {
                 throw new UnableToStartChatException(ioException);
             }
-            socketMap.put(contact.getUUID(), newSocket);
+            socketMap.put(contact.getAddress(), newSocket);
             pool.submit(new ClientHandler(newSocket, contact));
             // identify
             Message identify = new MessageBuilder()
@@ -89,16 +90,20 @@ public class ChatServer extends Thread {
                     .setType(Message.Type.CHAT_IDENTIFY)
                     .build();
             try {
-                sendMessage(contact.getUUID(), identify);
+                sendMessage(contact.getAddress(), identify);
             } catch(IOException io) {
                 throw new UnableToStartChatException(io);
             }
         } // otherwise, we already have a client handler for the socket
     }
 
-    public void sendMessage(UUID recipient, Message message) throws UnknownRecipientException, IOException {
-        if (!socketMap.containsKey(recipient)) throw new UnknownRecipientException(recipient);
-        Socket socket = socketMap.get(recipient);
+    public synchronized boolean isChatOpen(Contact with) {
+        return socketMap.containsKey(with.getAddress());
+    }
+
+    public synchronized void sendMessage(InetAddress recipientIP, Message message) throws UnknownRecipientException, IOException {
+        if (!socketMap.containsKey(recipientIP)) throw new UnknownRecipientException(recipientIP);
+        Socket socket = socketMap.get(recipientIP);
         byte[] buffer = message.toBuffer();
         DataOutputStream out = new DataOutputStream(socket.getOutputStream());
         out.writeInt(buffer.length);
@@ -106,9 +111,9 @@ public class ChatServer extends Thread {
         out.flush();
     }
 
-    public void stopChat(Contact with) throws UnknownRecipientException, IOException {
-        if (!socketMap.containsKey(with.getUUID())) throw new UnknownRecipientException(with.getUUID());
-        Socket socket = socketMap.get(with.getUUID());
+    public synchronized void stopChat(Contact with) throws UnknownRecipientException, IOException {
+        if (!socketMap.containsKey(with.getAddress())) throw new UnknownRecipientException(with.getAddress());
+        Socket socket = socketMap.get(with.getAddress());
         socket.close();
     }
 
@@ -144,7 +149,7 @@ public class ChatServer extends Thread {
             } finally {
                 try {
                     if (identified) {
-                        socketMap.remove(this.contact.getUUID());
+                        socketMap.remove(this.contact.getAddress());
                     }
                     if (!socket.isClosed()) {
                         for(IObserver o : observers) {
@@ -161,7 +166,7 @@ public class ChatServer extends Thread {
                 case CHAT_IDENTIFY -> {
                     this.identified = true;
                     this.contact = msg.getSender();
-                    socketMap.put(msg.getSenderUUID(), this.socket);
+                    socketMap.put(msg.getAddress(), this.socket);
                     for(IObserver o : observers) {
                         o.onChatInitiate(this.contact);
                     }

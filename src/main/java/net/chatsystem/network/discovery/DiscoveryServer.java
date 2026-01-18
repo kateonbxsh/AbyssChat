@@ -8,6 +8,8 @@ import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Optional;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import net.chatsystem.models.Contact;
 import net.chatsystem.models.ContactList;
@@ -45,6 +47,10 @@ public class DiscoveryServer extends Thread {
     private DatagramSocket socket; // Socket to listen on for discoveries
     private final ArrayList<IObserver> observers = new ArrayList<>(); // observer
 
+    public DiscoveryServer() {
+        setDaemon(true);
+    }
+
     public void bind() throws SocketException {
         this.socket = new DatagramSocket(RECEIVE_PORT);
         socket.setBroadcast(true);
@@ -60,13 +66,6 @@ public class DiscoveryServer extends Thread {
     public boolean isConnected() {
         return connected;
     }
-    public void setConnected() {
-        connected = true;
-    }
-    public void setDisconnected() {
-        connected = false;
-    }
-    
 
     @Override
     public void run() {
@@ -96,7 +95,7 @@ public class DiscoveryServer extends Thread {
             case ACKNOWLEDGE_DISCOVER -> {
                 String username = message.getContent();
                 try {
-                    Contact newContact = ContactList.getInstance().registerContact(username, message.getSenderUUID(), message.getAddress());
+                    Contact newContact = ContactList.getInstance().registerContact(username, message.getAddress());
                     for (IObserver o : observers) {
                         o.onDiscoverContact(newContact);
                     }
@@ -110,8 +109,9 @@ public class DiscoveryServer extends Thread {
             }
             case USERNAME_ALREADY_TAKEN -> {
                 for (IObserver o : observers) {
-                    o.onNotifyUsernameTaken();
+                    o.onUsernameTaken();
                 }
+                loginTimer.cancel();
             }
         }
 
@@ -121,7 +121,8 @@ public class DiscoveryServer extends Thread {
             case DISCOVER_ME -> {
                 String username = message.getContent();
                 try {
-                    Contact newContact = ContactList.getInstance().registerContact(username, message.getSenderUUID(), message.getAddress());
+                    Contact newContact = ContactList.getInstance().registerContact(username, message.getAddress());
+                    newContact.setStatus(User.Status.ONLINE); // mark as ONLINE
                     for (IObserver o : observers) {
                         o.onDiscoverContact(newContact);
                     }
@@ -131,6 +132,8 @@ public class DiscoveryServer extends Thread {
                             .setAddress(message.getAddress())
                             .build();
                     sendMessage(discoverMeToo);
+                    // send my current status as well
+                    changeStatus(User.getInstance().getStatus());
                 } catch (UsernameAlreadyTakenException ex) {
                     Message response = new MessageBuilder()
                             .setType(Message.Type.USERNAME_ALREADY_TAKEN)
@@ -141,14 +144,14 @@ public class DiscoveryServer extends Thread {
             }
             case USERNAME_ALREADY_TAKEN -> {
                 for (IObserver o : observers) {
-                    o.onNotifyUsernameTaken();
+                    o.onUsernameTaken();
                 }
             }
             case CHANGE_USERNAME_REQUEST -> {
                 try {
                     String oldUsername = message.getSender().getUsername();
                     // this could throw UsernameAlreadyTakenException
-                    ContactList.getInstance().changeContactUsername(message.getSenderUUID(), message.getContent());
+                    ContactList.getInstance().changeContactUsername(message.getAddress(), message.getContent());
                     for (IObserver o : observers) {
                         o.onContactUsernameChange(message.getSender(), oldUsername, message.getContent());
                     }
@@ -160,18 +163,29 @@ public class DiscoveryServer extends Thread {
                     sendMessage(response);
                 } catch (UnknownSenderException ignored) {}
             }
+            case STATUS_CHANGE -> {
+                User.Status status;
+                try {
+                    status = User.Status.valueOf(message.getContent());
+                    Contact contact = message.getSender();
+                    contact.setStatus(status);
+                    for (IObserver o : observers) {
+                        o.onContactStatusUpdate(contact);
+                    }
+                } catch (IllegalArgumentException | UnknownSenderException ignored) {}
+            }
             case DISCONNECT -> {
-                Optional<Contact> c = ContactList.getInstance().getContactByUUID(message.getSenderUUID());
+                Optional<Contact> c = ContactList.getInstance().getContactByIP(message.getAddress());
                 if (c.isEmpty()) break;
+                c.get().setStatus(User.Status.OFFLINE);
                 for (IObserver o: observers) {
                     o.onContactDisconnect(c.get());
                 }
-                ContactList.getInstance().unregisterContact(c.get());
             }
         }
     }
 
-    public void sendMessage(Message message) {
+    public synchronized void sendMessage(Message message) {
         byte[] buffer = message.toBuffer();
         DatagramPacket p = new DatagramPacket(buffer, 0, buffer.length, message.getAddress(), SEND_PORT);
         try {
@@ -181,7 +195,28 @@ public class DiscoveryServer extends Thread {
         }
     }
 
-    public void attemptLogin() {
+    Timer loginTimer = new Timer();
+    private static final long USERNAME_CONFIRMATION_DELAY = 1000;
+    private class LoginTimerTask extends TimerTask {
+        @Override
+        public void run() {
+            connected = true;
+            for(IObserver o : observers) {
+                o.onLoggedIn(User.getInstance());
+            }
+        }
+    }
+    private class UsernameChangeTask extends TimerTask {
+        @Override
+        public void run() {
+            User.getInstance().setUsername(newUsername);
+            for(IObserver o : observers) {
+                o.onUsernameChanged(newUsername);
+            }
+        }
+    }
+
+    public synchronized void attemptLogin() {
 
         String username = User.getInstance().getUsername();
         Message login = new MessageBuilder()
@@ -190,9 +225,16 @@ public class DiscoveryServer extends Thread {
                 .setAddress(BROADCAST_ADDRESS)
                 .build();
         sendMessage(login);
+        loginTimer = new Timer();
+        loginTimer.schedule(new LoginTimerTask(), USERNAME_CONFIRMATION_DELAY);
+
+        // while trying to log in, the user should hold the username hostage,
+        // in case someone else tries to log in at the same time with that same username
+        connected = true;
+
     }
 
-    public void disconnect() {
+    public synchronized void disconnect() {
         if (!running) return; //if already disconnected, no need to disconnect twice (ShutdownHook re-runs it)
         Message disconnect = new MessageBuilder()
                 .setType(Message.Type.DISCONNECT)
@@ -204,13 +246,30 @@ public class DiscoveryServer extends Thread {
         socket.close();
     }
 
-    public void changeUsername(String username) {
+    private String newUsername;
+    public synchronized void changeUsername(String username) {
+        newUsername = username;
         Message login = new MessageBuilder()
                 .setType(Message.Type.CHANGE_USERNAME_REQUEST)
                 .setContent(username)
                 .setAddress(BROADCAST_ADDRESS)
                 .build();
         sendMessage(login);
+        loginTimer = new Timer();
+        loginTimer.schedule(new UsernameChangeTask(), USERNAME_CONFIRMATION_DELAY);
+    }
+
+    public synchronized void changeStatus(User.Status newStatus) {
+        User.getInstance().setStatus(newStatus);
+        Message msg = new MessageBuilder()
+                .setType(Message.Type.STATUS_CHANGE)
+                .setContent(newStatus.toString())
+                .setAddress(BROADCAST_ADDRESS)
+                .build();
+        sendMessage(msg);
+        for (IObserver o : observers) {
+            o.onStatusChanged(newStatus);
+        }
     }
 
 }

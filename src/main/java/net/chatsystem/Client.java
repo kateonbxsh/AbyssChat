@@ -2,14 +2,13 @@ package net.chatsystem;
 
 
 import java.io.IOException;
-import java.net.SocketException;
 import java.util.List;
 
 import net.chatsystem.controller.CommandLine;
 import net.chatsystem.controller.LoginController;
-import net.chatsystem.network.chat.Chat;
 import net.chatsystem.network.chat.ChatServer;
 import net.chatsystem.network.discovery.DiscoveryServer;
+import net.chatsystem.ui.MainFrame;
 
 public class Client {
 
@@ -20,13 +19,12 @@ public class Client {
         }
     }
 
-    public static void main(String[] args) throws InterruptedException {
+    public static void main(String[] args) {
 
         DiscoveryServer server = DiscoveryServer.getInstance();
         LoginController controller = LoginController.getInstance();
         ChatServer chat = ChatServer.getInstance();
-        chat.addObserver(controller);
-        server.addObserver(controller);
+
 
         // if needing to run the project locally (on one computer, set a send and receive port)
         if (List.of(args).contains("--local1")) {
@@ -49,15 +47,17 @@ public class Client {
         // add shutdown hook, in case user exits without disconnecting
         Runtime.getRuntime().addShutdownHook(new ShutdownDisconnect());
 
-        // start threads
-        controller.start();
         server.start();
         chat.start();
 
-        // wait for threads
-        server.join();
-        controller.join();
-        chat.join();
+        // CLI mode
+        if (List.of(args).contains("--cl")) {
+            chat.addObserver(controller);
+            server.addObserver(controller);
+            controller.start();
+        }
+        // UI mode
+        else new MainFrame();
 
     }
 }

@@ -1,18 +1,19 @@
 package net.chatsystem.models;
 
 import java.net.InetAddress;
-import java.util.UUID;
 
 public class Contact extends User {
 
     private final InetAddress remoteAddress;
 
-    public Contact(String username, UUID uuid, InetAddress address) {
-        super(username, uuid);
+    public Contact(String username, InetAddress address) {
+        super(username);
         remoteAddress = address;
     }
 
-    public InetAddress getRemoteAddress() {
+    @Override
+    public InetAddress getAddress() {
         return remoteAddress;
     }
+
 }

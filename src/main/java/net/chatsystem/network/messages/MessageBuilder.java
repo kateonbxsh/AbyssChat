@@ -1,14 +1,11 @@
 package net.chatsystem.network.messages;
 
 import net.chatsystem.models.Contact;
-import net.chatsystem.models.User;
 
 import java.net.InetAddress;
-import java.util.UUID;
 
 public class MessageBuilder {
 
-    private UUID senderUUID = User.getInstance().getUUID();
     private Message.Type type = Message.Type.NONE;
     private String content = "";
     private InetAddress address;
@@ -23,22 +20,17 @@ public class MessageBuilder {
         return this;
     }
 
-    public MessageBuilder setSenderUUID(UUID senderUUID) {
-        this.senderUUID = senderUUID;
-        return this;
-    }
-
     public MessageBuilder setType(Message.Type type) {
         this.type = type;
         return this;
     }
 
     public MessageBuilder setRecipient(Contact contact) {
-        this.address = contact.getRemoteAddress();
+        this.address = contact.getAddress();
         return this;
     }
 
     public Message build() {
-        return new Message(senderUUID, type, content, address);
+        return new Message(type, content, address);
     }
 }

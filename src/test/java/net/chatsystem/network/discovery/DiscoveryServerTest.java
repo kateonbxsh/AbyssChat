@@ -9,7 +9,6 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -24,16 +23,11 @@ class DiscoveryServerTest {
 
     private DiscoveryServer server;
     private FakeDatagramSocket fakeSocket;
-    private UUID localUuid;
 
     @BeforeEach
     void setUp() throws Exception {
         
         // set up local user
-        localUuid = UUID.randomUUID();
-        Field uuidField = User.class.getDeclaredField("uuid");
-        uuidField.setAccessible(true);
-        uuidField.set(User.getInstance(), localUuid);
         User.getInstance().setUsername("me");
 
         // inject a fake socket
@@ -58,7 +52,6 @@ class DiscoveryServerTest {
         assertEquals(Message.Type.DISCOVER_ME, msg.getType());
         assertEquals("me", msg.getContent());
         assertEquals(DiscoveryServer.BROADCAST_ADDRESS, msg.getAddress());
-        assertEquals(localUuid, msg.getSenderUUID());
     }
 
     @Test
@@ -94,7 +87,6 @@ class DiscoveryServerTest {
         Message self = new MessageBuilder()
                 .setType(Message.Type.DISCOVER_ME)
                 .setContent("me")
-                .setSenderUUID(localUuid)
                 .setAddress(InetAddress.getLoopbackAddress())
                 .build();
 

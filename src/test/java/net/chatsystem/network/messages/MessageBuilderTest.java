@@ -1,21 +1,20 @@
 package net.chatsystem.network.messages;
 
-import net.chatsystem.models.Contact;
-import net.chatsystem.models.User;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.net.InetAddress;
-import java.net.UnknownHostException;
-import java.util.UUID;
-
-import static org.junit.jupiter.api.Assertions.*;
+import net.chatsystem.models.Contact;
+import net.chatsystem.models.User;
 
 @DisplayName("MessageBuilder tests")
 class MessageBuilderTest {
 
-    private UUID myUuid;
     private InetAddress address;
 
     @BeforeEach
@@ -25,7 +24,7 @@ class MessageBuilderTest {
 
         // ensure the singleton user has a known UUID
         User.getInstance().setUsername("me");
-        myUuid = User.getInstance().getUUID();
+        address = User.getInstance().getAddress();
     }
 
     @Test
@@ -37,7 +36,7 @@ class MessageBuilderTest {
                 .setAddress(address)
                 .build();
 
-        assertEquals(myUuid, msg.getSenderUUID());
+        assertEquals(address, msg.getAddress());
         assertEquals(Message.Type.DISCOVER_ME, msg.getType());
         assertEquals("hello", msg.getContent());
         assertEquals(address, msg.getAddress());
@@ -46,7 +45,7 @@ class MessageBuilderTest {
     @Test
     @DisplayName("setRecipient() copies address from Contact")
     void setRecipientCopiesAddress() throws UnknownHostException {
-        Contact contact = new Contact("bob", UUID.randomUUID(), address);
+        Contact contact = new Contact("bob", address);
         Message msg = new MessageBuilder()
                 .setRecipient(contact)
                 .setType(Message.Type.CHANGE_USERNAME_REQUEST)
@@ -54,18 +53,6 @@ class MessageBuilderTest {
 
         assertEquals(address, msg.getAddress());
         assertEquals(Message.Type.CHANGE_USERNAME_REQUEST, msg.getType());
-    }
-
-    @Test
-    @DisplayName("setSenderUUID overrides default value")
-    void setSenderUUIDOverridesDefault() {
-        UUID other = UUID.randomUUID();
-        Message msg = new MessageBuilder()
-                .setSenderUUID(other)
-                .setType(Message.Type.ACKNOWLEDGE_DISCOVER)
-                .build();
-
-        assertEquals(other, msg.getSenderUUID());
     }
 
 }

@@ -1,12 +1,10 @@
 package net.chatsystem.network.exceptions;
 
-import net.chatsystem.models.User;
-
-import java.util.UUID;
+import java.net.InetAddress;
 
 public class UnknownRecipientException extends Exception {
-    public final UUID who;
-    public UnknownRecipientException(UUID who) {
+    public final InetAddress who;
+    public UnknownRecipientException(InetAddress who) {
         super();
         this.who = who;
     }

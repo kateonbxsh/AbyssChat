@@ -4,60 +4,87 @@ import net.chatsystem.models.exceptions.UsernameAlreadyTakenException;
 
 import java.net.InetAddress;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class ContactList {
 
-    public static final ContactList instance = new ContactList();
-    private final Map<String, Contact> contacts = new HashMap<>();
-    private final Map<UUID, Contact> contactsByUUID = new HashMap<>();
-
-    public synchronized Contact registerContact(String username, UUID uuid, InetAddress address) throws UsernameAlreadyTakenException {
-        if (contacts.containsKey(username) || User.getInstance().getUsername().equals(username))
-            throw new UsernameAlreadyTakenException();
-        Contact contact = new Contact(username, uuid, address);
-        contacts.put(username, contact);
-        contactsByUUID.put(uuid, contact);
-        return contact;
-    }
-
-    public synchronized void unregisterContact(Contact contact) {
-        contacts.remove(contact.getUsername());
-        contactsByUUID.remove(contact.getUUID());
-    }
-
-    public synchronized void changeContactUsername(UUID uuid, String username) throws UsernameAlreadyTakenException {
-        if (User.getInstance().getUsername().equals(username)) throw new UsernameAlreadyTakenException();
-        if (contacts.containsKey(username)) throw new UsernameAlreadyTakenException();
-        Contact currentContact = contactsByUUID.get(uuid);
-        String oldUsername = currentContact.getUsername();
-        currentContact.setUsername(username);
-        contacts.remove(oldUsername);
-        contacts.put(username, currentContact);
-    }
-
-    public synchronized Optional<Contact> getContact(String username) {
-        if (!contacts.containsKey(username)) return Optional.empty();
-        return Optional.of(contacts.get(username));
-    }
-
-    public synchronized Optional<Contact> getContactByUUID(UUID uuid) {
-        if (!contactsByUUID.containsKey(uuid)) return Optional.empty();
-        return Optional.of(contactsByUUID.get(uuid));
+    private static final class Holder {
+        private static final ContactList INSTANCE = new ContactList();
     }
 
     public static ContactList getInstance() {
-        return instance;
+        return Holder.INSTANCE;
     }
 
-    public List<Contact> getContacts() {
-        return contacts.values().stream().toList();
+    private final Map<String, Contact> contactsByUsername = new HashMap<>();
+    private final Map<InetAddress, Contact> contactsByIP = new HashMap<>();
+
+    private ContactList() {}
+
+    public synchronized Contact registerContact(String username, InetAddress address) throws UsernameAlreadyTakenException {
+        
+        if (username == null) throw new NullPointerException();
+        if (username.isBlank()) throw new IllegalArgumentException();
+
+        username = username.trim();
+
+        if (User.getInstance().getUsername().equals(username)) {
+            throw new UsernameAlreadyTakenException();
+        }
+
+        Contact existingByUsername = contactsByUsername.get(username);
+        Contact existingByIP = contactsByIP.get(address);
+
+        if (existingByUsername != null) {
+            // username exists
+            if (!existingByUsername.getAddress().equals(address)) {
+                throw new UsernameAlreadyTakenException();
+            }
+            // same IP & username → just mark online
+            existingByUsername.setStatus(User.Status.ONLINE);
+            return existingByUsername;
+        }
+
+        if (existingByIP != null) {
+            // IP exists, new username → update username
+            contactsByUsername.remove(existingByIP.getUsername()); // remove old mapping
+            existingByIP.setUsername(username);
+            contactsByUsername.put(username, existingByIP);
+            return existingByIP;
+        }
+
+        // completely new contact
+        Contact contact = new Contact(username, address);
+        contactsByUsername.put(username, contact);
+        contactsByIP.put(address, contact);
+        return contact;
     }
 
-    // helper method for tests, doesn't really make sense to use it in the app
-    public void flush() {
-        contacts.clear();
-        contactsByUUID.clear();
+    public synchronized void changeContactUsername(InetAddress address, String newUsername) throws UsernameAlreadyTakenException {
+        if (User.getInstance().getUsername().equals(newUsername)) throw new UsernameAlreadyTakenException();
+        if (contactsByUsername.containsKey(newUsername)) throw new UsernameAlreadyTakenException();
+
+        Contact contact = contactsByIP.get(address);
+        if (contact == null) throw new IllegalArgumentException("No contact with given IP");
+
+        contactsByUsername.remove(contact.getUsername());
+        contact.setUsername(newUsername);
+        contactsByUsername.put(newUsername, contact);
     }
 
+    public synchronized Optional<Contact> getContact(String username) {
+        return Optional.ofNullable(contactsByUsername.get(username));
+    }
+
+    public synchronized Optional<Contact> getContactByIP(InetAddress address) {
+        return Optional.ofNullable(contactsByIP.get(address));
+    }
+
+    public synchronized List<Contact> getContacts() {
+        return List.copyOf(contactsByUsername.values());
+    }
+
+    public synchronized void flush() {
+        contactsByUsername.clear();
+        contactsByIP.clear();
+    }
 }
